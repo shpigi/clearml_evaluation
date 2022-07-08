@@ -1,0 +1,39 @@
+version: "2.3"
+
+services:
+  clearml_env:
+    shm_size: 10gb
+    container_name: clearml_env
+    image: clearml_env
+    build:
+      context: .
+      # args:
+        # PIP_EXTRA_INDEX_URL: https://${PACKAGECLOUD_INTERNAL_READ_TOKEN}@packagecloud.io/Kindred/internal/pypi/simple/
+    privileged: true
+    volumes:
+      - "./:/src/clearml_evaluation"
+      - "/home/$USER/data:/data"
+      - ".fastai:/root/.fastai"
+      - "./clearml.conf:/root/clearml.conf"
+      # - "/etc/kin_ml:/etc/kin_ml"
+      # - "/etc/mlr:/etc/mlr"
+      # - "./models/cache:/root/.cache/"
+    environment:
+      #COMPUTE_DEVICE: cuda:0
+      LRU_CACHE_CAPACITY: 1
+      # Use a credentials file that allows for BQ queries in kin-reporting project
+      # GOOGLE_APPLICATION_CREDENTIALS: /etc/kin_ml/my_credentials.json
+      # AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+      # AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+      #NVIDIA_VISIBLE_DEVICES: 1
+    tty: yes
+
+    # networks:
+    #   - primary # for mac
+    network_mode: host # for linux
+    command: ["bash", "/src/clearml_evaluation/jupyter_entrypoint.sh"]
+    runtime: nvidia
+
+# networks:
+#   primary:
+#     driver: "bridge"
