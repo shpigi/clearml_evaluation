@@ -137,8 +137,7 @@ def make_image_transforms():
 
 
 def make_dls(
-    clearml_dataset,
-    splits,
+    clearml_dataset, splits,
 ):
     from fastai.vision.all import (
         Path,
@@ -171,8 +170,7 @@ def make_dl_test(dataset_project, dataset_name):
     from clearml import Dataset
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
@@ -239,12 +237,7 @@ def train_image_classifier(
         log_dir=run_tb_path, trace_model=False, log_preds=False
     )
     learner.fine_tune(
-        2,
-        suggestions.valley,
-        cbs=[
-            SaveModelCallback(every_epoch=False),
-            tb_callback,
-        ],
+        2, suggestions.valley, cbs=[SaveModelCallback(every_epoch=False), tb_callback,],
     )
     save_model(learner)  # with_opt=False
 
@@ -279,7 +272,7 @@ def eval_model(
     learner = load_learner(Path(run_learner_path / "learner.pkl"), cpu=False)
     learner.model.to(device="cuda")
     test_dl = make_dl_test(dataset_project, dataset_name)
-    #learner.dls = dls
+    # learner.dls = dls
     test_dl = test_dl.to(device="cuda")
     preds, y_true, losses = learner.get_preds(inner=False, dl=test_dl, with_loss=True)
 
