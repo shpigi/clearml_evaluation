@@ -10,6 +10,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        git \
+        ssh \
    && apt-get upgrade -y --no-install-recommends \
         libstdc++6 \
    && apt-get purge -y software-properties-common \

@@ -49,7 +49,6 @@ def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
         manager = StorageManager()
         train_items_file = manager.get_local_copy(
             "gs://clearml-evaluation/data/pets/train_items.json",
-            # "/tmp/train_items.json",
         )
         with open(train_items_file, "r") as fp:
             train_items = json.load(fp)
@@ -168,7 +167,7 @@ def make_dls(
     return dls
 
 
-def make_dl_test(dls):
+def make_dl_test(dataset_project, dataset_name):
     from clearml import Dataset
 
     eval_dataset = Dataset.get(
@@ -258,24 +257,41 @@ def train_image_classifier(
 
 
 def eval_model(
-    run_learner_path, run_dataset_path, run_splits_path, run_id, evaluations_path
+    run_learner_path,
+    run_id,
+    dataset_name,
+    dataset_project,
+    run_eval_uri,
+    local_data_path="/data",
 ):
-    from fastai.vision.all import load_learner
+    import pickle
+    import json
+    from fastai.vision.all import (
+        Learner,
+        load_learner,
+        Path,
+        Interpretation,
+        ClassificationInterpretation,
+        plt,
+    )
 
-    learner = load_learner(run_learner_path, cpu=False)
+    print("run_learner_path:", run_learner_path)
+    learner = load_learner(Path(run_learner_path / "learner.pkl"), cpu=False)
     learner.model.to(device="cuda")
-    dls, test_dl = make_dl_test(run_dataset_path, run_splits_path)
-    learner.dls = dls
+    test_dl = make_dl_test(dataset_project, dataset_name)
+    #learner.dls = dls
     test_dl = test_dl.to(device="cuda")
     preds, y_true, losses = learner.get_preds(inner=False, dl=test_dl, with_loss=True)
 
-    run_eval_path = evaluations_path / run_id
+    run_eval_path = Path(local_data_path) / run_eval_uri
     run_eval_path.mkdir(parents=True, exist_ok=True)
     eval_results = {
         "run_id": run_id,
-        "run_learner_path": run_learner_path,
-        "run_dataset_path": run_dataset_path,
-        "run_splits_path": run_splits_path,
+        "run_learner_path": learner.path,
+        "eval_dataset": {
+            "dataset_project": dataset_project,
+            "dataset_name": dataset_name,
+        },
         "metrics": {
             "top_1_accuracy": top_1_accuracy(preds, y_true),
             "top_2_accuracy": top_2_accuracy(preds, y_true),
@@ -284,10 +300,10 @@ def eval_model(
     }
     print(eval_results["metrics"])
 
-    interp = Interpretation(learner=learner, dl=test_dl, losses=losses)
+    interp = Interpretation(learn=learner, dl=test_dl, losses=losses)
     interp.plot_top_losses(9, figsize=(15, 10))
     plt.show()
-    interp = ClassificationInterpretation.from_learner(learner, dl=test_dl)
+    interp = ClassificationInterpretation.from_learner(learn=learner, dl=test_dl)
     interp.plot_confusion_matrix(figsize=(10, 10))
     #     clearml_task.logger.report_matplotlib_figure(
     #         title="Manual Reporting - confusion matrix", series=run_id, iteration=0, figure=plt
