@@ -1,45 +1,10 @@
-# import torch
-# from fastai.vision.all import (
-#     partial,
-#     Precision,
-#     Recall,
-#     get_image_files,
-#     using_attr,
-#     Datasets,
-#     vision_learner,
-#     L,
-#     RegexLabeller,
-#     PILImage,
-#     Resize,
-#     ToTensor,
-#     IntToFloatTensor,
-#     Categorize,
-#     aug_transforms,
-#     resnet34,
-#     accuracy,
-#     error_rate,
-#     SaveModelCallback,
-#     top_k_accuracy,
-#     load_learner,
-#     plt,
-#     pickle,
-#     json,
-#     Interpretation,
-#     ClassificationInterpretation,
-# )
-
-# # # import timm
-# from fastai.callback.tensorboard import TensorBoardCallback
-
-# from clearml.automation.controller import PipelineDecorator
-# from clearml import TaskTypes
+import json
+import shutil
+from clearml import StorageManager, Dataset
+from fastai.vision.all import URLs, untar_data
 
 
 def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
-    import json
-    import shutil
-    from clearml import StorageManager, Dataset
-    from fastai.vision.all import URLs, untar_data
 
     try:
         the_dataset = Dataset.get(
@@ -137,7 +102,8 @@ def make_image_transforms():
 
 
 def make_dls(
-    clearml_dataset, splits,
+    clearml_dataset,
+    splits,
 ):
     from fastai.vision.all import (
         Path,
@@ -170,7 +136,8 @@ def make_dl_test(dataset_project, dataset_name):
     from clearml import Dataset
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing",
+        dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
@@ -218,7 +185,12 @@ def save_model(learner):
 
 
 def train_image_classifier(
-    clearml_dataset, backbone_name, run_model_uri, run_tb_uri, local_data_path="/data"
+    clearml_dataset,
+    backbone_name,
+    run_model_uri,
+    run_tb_uri,
+    local_data_path="/data",
+    num_epochs=5,
 ):
     from fastai.callback.tensorboard import TensorBoardCallback
     from fastai.vision.all import plt, SaveModelCallback, Path
@@ -237,7 +209,9 @@ def train_image_classifier(
         log_dir=run_tb_path, trace_model=False, log_preds=False
     )
     learner.fine_tune(
-        2, suggestions.valley, cbs=[SaveModelCallback(every_epoch=False), tb_callback,],
+        num_epochs,
+        suggestions.valley,
+        cbs=[SaveModelCallback(every_epoch=False), tb_callback],
     )
     save_model(learner)  # with_opt=False
 
