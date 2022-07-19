@@ -1,10 +1,8 @@
-import json
-import shutil
-from clearml import StorageManager, Dataset
-from fastai.vision.all import URLs, untar_data
-
-
 def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
+    import json
+    import shutil
+    from clearml import StorageManager, Dataset
+    from fastai.vision.all import URLs, untar_data
 
     try:
         the_dataset = Dataset.get(
@@ -102,8 +100,7 @@ def make_image_transforms():
 
 
 def make_dls(
-    clearml_dataset,
-    splits,
+    clearml_dataset, splits,
 ):
     from fastai.vision.all import (
         Path,
@@ -136,8 +133,7 @@ def make_dl_test(dataset_project, dataset_name):
     from clearml import Dataset
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
