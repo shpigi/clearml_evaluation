@@ -1,7 +1,19 @@
 import json
+import pickle
 import shutil
-from clearml import StorageManager, Dataset
-from fastai.vision.all import URLs, untar_data
+
+import torch
+from clearml import Dataset, StorageManager
+from fastai.callback.tensorboard import TensorBoardCallback
+from fastai.metrics import Precision, Recall, top_k_accuracy
+from fastai.vision.all import (Categorize, ClassificationInterpretation,
+                               Datasets, Interpretation, IntToFloatTensor,
+                               Learner, Path, PILImage, RegexLabeller, Resize,
+                               SaveModelCallback, ToTensor, URLs, accuracy,
+                               aug_transforms, error_rate, get_image_files,
+                               load_learner, plt, untar_data, using_attr,
+                               vision_learner)
+from sklearn.model_selection import StratifiedKFold
 
 
 def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
@@ -54,9 +66,6 @@ def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
 
 
 def get_splits(dataset, n_splits):
-    from fastai.vision.all import RegexLabeller
-    from sklearn.model_selection import StratifiedKFold
-
     items = dataset.list_files()
     labeller = RegexLabeller(pat=r"^(.*)_\d+.jpg$")
     labels = [labeller(item) for item in items]
@@ -66,54 +75,34 @@ def get_splits(dataset, n_splits):
 
 
 def top_1_accuracy(inp, targ, axis=-1):
-    from fastai.metrics import top_k_accuracy
-
     return top_k_accuracy(inp, targ, k=1, axis=axis)
 
 
 def top_2_accuracy(inp, targ, axis=-1):
-    from fastai.metrics import top_k_accuracy
-
     return top_k_accuracy(inp, targ, k=2, axis=axis)
 
 
 def top_3_accuracy(inp, targ, axis=-1):
-    from fastai.metrics import top_k_accuracy
-
     return top_k_accuracy(inp, targ, k=3, axis=axis)
 
 
 def precision_micro():
-    from fastai.metrics import Precision
-
     return Precision(average="micro")
 
 
 def recall_micro():
-    from fastai.metrics import Recall
 
     return Recall(average="micro")
 
 
 def make_image_transforms():
-    from fastai.vision.all import PILImage, Resize, ToTensor, IntToFloatTensor
 
     return [PILImage.create, Resize(460), ToTensor(), IntToFloatTensor()]
 
 
 def make_dls(
-    clearml_dataset,
-    splits,
+    clearml_dataset, splits,
 ):
-    from fastai.vision.all import (
-        Path,
-        Categorize,
-        get_image_files,
-        using_attr,
-        RegexLabeller,
-        Datasets,
-        aug_transforms,
-    )
 
     dataset_path = Path(clearml_dataset.get_local_copy())
     items = get_image_files(dataset_path)
@@ -133,11 +122,9 @@ def make_dls(
 
 
 def make_dl_test(dataset_project, dataset_name):
-    from clearml import Dataset
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
@@ -148,8 +135,6 @@ def make_dl_test(dataset_project, dataset_name):
 
 def make_learner(dls, run_model_path, backbone_name="resnet34"):
     # backbone_fn = pretrained_resnet_34 = partial(timm.create_model, pretrained=True)
-    from fastai.vision.all import vision_learner, accuracy, error_rate
-
     return vision_learner(
         dls,
         backbone_name,
@@ -169,7 +154,6 @@ def make_learner(dls, run_model_path, backbone_name="resnet34"):
 
 
 def save_model(learner):
-    import torch
 
     # learner.export(learner.path/'learner.pkl')
     dummy_inp = torch.stack([a[0] for a in learner.dls.train_ds[:2]]).cuda()
@@ -185,16 +169,8 @@ def save_model(learner):
 
 
 def train_image_classifier(
-    clearml_dataset,
-    backbone_name,
-    run_model_uri,
-    run_tb_uri,
-    local_data_path="/data",
-    num_epochs=5,
+    clearml_dataset, backbone_name, run_model_uri, run_tb_uri, local_data_path="/data"
 ):
-    from fastai.callback.tensorboard import TensorBoardCallback
-    from fastai.vision.all import plt, SaveModelCallback, Path
-
     # get splits
     splits = list(get_splits(clearml_dataset, 5))[0]
 
@@ -209,9 +185,7 @@ def train_image_classifier(
         log_dir=run_tb_path, trace_model=False, log_preds=False
     )
     learner.fine_tune(
-        num_epochs,
-        suggestions.valley,
-        cbs=[SaveModelCallback(every_epoch=False), tb_callback],
+        2, suggestions.valley, cbs=[SaveModelCallback(every_epoch=False), tb_callback,],
     )
     save_model(learner)  # with_opt=False
 
@@ -231,17 +205,6 @@ def eval_model(
     run_eval_uri,
     local_data_path="/data",
 ):
-    import pickle
-    import json
-    from fastai.vision.all import (
-        Learner,
-        load_learner,
-        Path,
-        Interpretation,
-        ClassificationInterpretation,
-        plt,
-    )
-
     print("run_learner_path:", run_learner_path)
     learner = load_learner(Path(run_learner_path / "learner.pkl"), cpu=False)
     learner.model.to(device="cuda")
