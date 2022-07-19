@@ -6,13 +6,30 @@ import torch
 from clearml import Dataset, StorageManager
 from fastai.callback.tensorboard import TensorBoardCallback
 from fastai.metrics import Precision, Recall, top_k_accuracy
-from fastai.vision.all import (Categorize, ClassificationInterpretation,
-                               Datasets, Interpretation, IntToFloatTensor,
-                               Learner, Path, PILImage, RegexLabeller, Resize,
-                               SaveModelCallback, ToTensor, URLs, accuracy,
-                               aug_transforms, error_rate, get_image_files,
-                               load_learner, plt, untar_data, using_attr,
-                               vision_learner)
+from fastai.vision.all import (
+    Categorize,
+    ClassificationInterpretation,
+    Datasets,
+    Interpretation,
+    IntToFloatTensor,
+    Learner,
+    Path,
+    PILImage,
+    RegexLabeller,
+    Resize,
+    SaveModelCallback,
+    ToTensor,
+    URLs,
+    accuracy,
+    aug_transforms,
+    error_rate,
+    get_image_files,
+    load_learner,
+    plt,
+    untar_data,
+    using_attr,
+    vision_learner,
+)
 from sklearn.model_selection import StratifiedKFold
 
 
@@ -101,7 +118,8 @@ def make_image_transforms():
 
 
 def make_dls(
-    clearml_dataset, splits,
+    clearml_dataset,
+    splits,
 ):
 
     dataset_path = Path(clearml_dataset.get_local_copy())
@@ -124,7 +142,8 @@ def make_dls(
 def make_dl_test(dataset_project, dataset_name):
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing",
+        dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
@@ -169,7 +188,12 @@ def save_model(learner):
 
 
 def train_image_classifier(
-    clearml_dataset, backbone_name, run_model_uri, run_tb_uri, local_data_path="/data"
+    clearml_dataset,
+    backbone_name,
+    run_model_uri,
+    run_tb_uri,
+    local_data_path="/data",
+    num_epochs=2,
 ):
     # get splits
     splits = list(get_splits(clearml_dataset, 5))[0]
@@ -185,7 +209,9 @@ def train_image_classifier(
         log_dir=run_tb_path, trace_model=False, log_preds=False
     )
     learner.fine_tune(
-        2, suggestions.valley, cbs=[SaveModelCallback(every_epoch=False), tb_callback,],
+        num_epochs,
+        suggestions.valley,
+        cbs=[SaveModelCallback(every_epoch=False), tb_callback],
     )
     save_model(learner)  # with_opt=False
 
