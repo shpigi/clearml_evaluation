@@ -112,14 +112,13 @@ def recall_micro():
     return Recall(average="micro")
 
 
-def make_image_transforms():
+def make_image_transforms(image_resize):
 
-    return [PILImage.create, Resize(460), ToTensor(), IntToFloatTensor()]
+    return [PILImage.create, Resize(image_resize), ToTensor(), IntToFloatTensor()]
 
 
 def make_dls(
-    clearml_dataset,
-    splits,
+    clearml_dataset, image_resize, splits, batch_size=64,
 ):
 
     dataset_path = Path(clearml_dataset.get_local_copy())
@@ -127,27 +126,29 @@ def make_dls(
 
     labeller = using_attr(RegexLabeller(pat=r"^(.*)_\d+.jpg$"), "name")
     tfms = [
-        make_image_transforms(),
+        make_image_transforms(image_resize=image_resize),
         [labeller, Categorize()],
     ]
 
     dsets = Datasets(items, tfms, splits=splits)
-    dls = dsets.dataloaders(  # after_item=[ToTensor(), IntToFloatTensor()],
-        batch_tfms=aug_transforms(size=224),
+    dls = dsets.dataloaders(
+        batch_size=batch_size,  # after_item=[ToTensor(), IntToFloatTensor()],
+        batch_tfms=aug_transforms(size=image_resize),
     )
 
     return dls
 
 
-def make_dl_test(dataset_project, dataset_name):
+def make_dl_test(dataset_project, dataset_name, image_resize, batch_size):
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
+        image_resize,
         [range(len(eval_dataset.list_files())), range(len(eval_dataset.list_files()))],
+        batch_size,
     )
     return dls.test_dl(dls.items, with_labels=True)
 
@@ -190,6 +191,8 @@ def save_model(learner):
 def train_image_classifier(
     clearml_dataset,
     backbone_name,
+    image_resize,
+    batch_size,
     run_model_uri,
     run_tb_uri,
     local_data_path="/data",
@@ -200,7 +203,7 @@ def train_image_classifier(
 
     run_model_path = Path(local_data_path) / run_model_uri
     run_tb_path = Path(local_data_path) / run_tb_uri
-    dls = make_dls(clearml_dataset, splits)
+    dls = make_dls(clearml_dataset, image_resize, splits, batch_size)
     run_model_path.mkdir(parents=True, exist_ok=True)
     learner = make_learner(dls, run_model_path, backbone_name)
     suggestions = learner.lr_find()
@@ -229,12 +232,14 @@ def eval_model(
     dataset_name,
     dataset_project,
     run_eval_uri,
+    image_resize,
+    batch_size,
     local_data_path="/data",
 ):
     print("run_learner_path:", run_learner_path)
     learner = load_learner(Path(run_learner_path / "learner.pkl"), cpu=False)
     learner.model.to(device="cuda")
-    test_dl = make_dl_test(dataset_project, dataset_name)
+    test_dl = make_dl_test(dataset_project, dataset_name, image_resize, batch_size)
     # learner.dls = dls
     test_dl = test_dl.to(device="cuda")
     preds, y_true, losses = learner.get_preds(inner=False, dl=test_dl, with_loss=True)
