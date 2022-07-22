@@ -1,8 +1,10 @@
 import json
 import pickle
 import shutil
-
+import tempfile
 import torch
+import random
+
 from clearml import Dataset, StorageManager, Task
 from fastai.callback.tensorboard import TensorBoardCallback
 from fastai.metrics import Precision, Recall, top_k_accuracy
@@ -34,10 +36,10 @@ from sklearn.model_selection import StratifiedKFold
 
 
 def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
-
+    new_dataset_name = f"pets_data_{num_samples_per_chunk}_{i_dataset}"
     try:
         the_dataset = Dataset.get(
-            dataset_project=project, dataset_name=f"pets_data_{i_dataset}"
+            dataset_project=project, dataset_name=new_dataset_name
         )
     except:
         manager = StorageManager()
@@ -48,14 +50,13 @@ def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
             train_items = json.load(fp)
         images_path = untar_data(URLs.PETS) / "images"
 
-        new_images_path = images_path / "new_train_images"
-        new_images_path.mkdir(exist_ok=True)
+        # random.seed() # randomise the seed or this tempfolder may exist when running locally
+        tmp_images_path = Path(tempfile.mkdtemp())
+        print("tmp_images_path", tmp_images_path)
         for item in train_items[
             i_dataset * num_samples_per_chunk : (i_dataset + 1) * num_samples_per_chunk
         ]:
-            shutil.copy(str(images_path / item) + ".jpg", str(new_images_path))
-
-        print(new_images_path)
+            shutil.copy(str(images_path / item) + ".jpg", str(tmp_images_path))
         print(
             i_dataset * num_samples_per_chunk, (i_dataset + 1) * num_samples_per_chunk
         )
@@ -63,22 +64,23 @@ def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
         if i_dataset == 0:
             parent_datsets = None
         else:
+            parent_dataset_name = f"pets_data_{num_samples_per_chunk}_{i_dataset-1}"
             parent = Dataset.get(
-                dataset_project="lavi-testing",
-                dataset_name=f"pets_data_{i_dataset - 1}",
+                dataset_project="lavi-testing", dataset_name=parent_dataset_name,
             )
             assert parent is not None
             parent_datsets = [parent.id]
 
         the_dataset = Dataset.create(
-            dataset_name=f"pets_data_{i_dataset}",
+            dataset_name=new_dataset_name,
             dataset_project="lavi-testing",
             parent_datasets=parent_datsets,
         )
-        the_dataset.add_files(new_images_path)
+        the_dataset.add_files(tmp_images_path)
         the_dataset.upload()
         the_dataset.finalize()
         print("make_new_dataset completed")
+        shutil.rmtree(tmp_images_path)
     return the_dataset
 
 
@@ -118,10 +120,7 @@ def make_image_transforms(image_resize):
 
 
 def make_dls(
-    clearml_dataset,
-    image_resize,
-    splits,
-    batch_size=64,
+    clearml_dataset, image_resize, splits, batch_size=64,
 ):
 
     dataset_path = Path(clearml_dataset.get_local_copy())
@@ -145,8 +144,7 @@ def make_dls(
 def make_dl_test(dataset_project, dataset_name, image_resize, batch_size):
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
