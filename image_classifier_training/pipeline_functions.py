@@ -255,7 +255,7 @@ def eval_model(
     eval_results = {
         "run_id": run_id,
         "model_id": model_id,
-        "run_learner_path": learner.path,
+        "run_learner_path": str(learner.path),
         "eval_dataset": {
             "dataset_project": dataset_project,
             "dataset_name": dataset_name,
