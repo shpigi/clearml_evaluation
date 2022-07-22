@@ -225,14 +225,14 @@ def train_image_classifier(
     plt.show()
     print("run_learner_path", learner.path)
     print("train_image_classifier completed")
-    model_id = Task.current_task().models["output"][-1].id
-    return run_model_path, model_id
+    model_ids = [m.id for m in Task.current_task().models["output"]]
+    return run_model_path, model_ids
 
 
 def eval_model(
     run_learner_path,
     run_id,
-    model_id,
+    model_ids,
     dataset_name,
     dataset_project,
     run_eval_uri,
@@ -252,7 +252,7 @@ def eval_model(
     run_eval_path.mkdir(parents=True, exist_ok=True)
     eval_results = {
         "run_id": run_id,
-        "model_id": model_id,
+        "model_ids": model_ids,
         "run_learner_path": str(learner.path),
         "eval_dataset": {
             "dataset_project": dataset_project,
