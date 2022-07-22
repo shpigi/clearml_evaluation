@@ -276,6 +276,7 @@ def eval_model(
     #     )
 
     plt.show()
+    print({"preds": preds.tolist(), "y_true": y_true.tolist()})
     with open(run_eval_path / "preds.pkl", "wb") as fid:
         pickle.dump({"preds": preds.tolist(), "y_true": y_true.tolist()}, fid)
 
