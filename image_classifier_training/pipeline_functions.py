@@ -277,7 +277,7 @@ def eval_model(
 
     plt.show()
     with open(run_eval_path / "preds.pkl", "wb") as fid:
-        pickle.dump({"preds": preds, "y_true": y_true}, fid)
+        pickle.dump({"preds": preds.tolist(), "y_true": y_true.tolist()}, fid)
 
     with open(run_eval_path / "evaluation_results.json", "w") as fid:
         json.dump(eval_results, fid, default=str, indent=4)
