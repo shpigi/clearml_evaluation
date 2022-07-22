@@ -259,9 +259,9 @@ def eval_model(
             "dataset_name": dataset_name,
         },
         "metrics": {
-            "top_1_accuracy": top_1_accuracy(preds, y_true),
-            "top_2_accuracy": top_2_accuracy(preds, y_true),
-            "top_3_accuracy": top_3_accuracy(preds, y_true),
+            "top_1_accuracy": top_1_accuracy(preds, y_true).tolist(),
+            "top_2_accuracy": top_2_accuracy(preds, y_true).tolist(),
+            "top_3_accuracy": top_3_accuracy(preds, y_true).tolist(),
         },
     }
     print(eval_results["metrics"])
