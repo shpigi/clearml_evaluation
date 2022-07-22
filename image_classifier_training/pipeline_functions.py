@@ -276,4 +276,4 @@ def eval_model(
 
     with open(run_eval_path / "evaluation_results.json", "w") as fid:
         json.dump(eval_results, fid, default=str, indent=4)
-    return run_eval_path
+    return eval_results
