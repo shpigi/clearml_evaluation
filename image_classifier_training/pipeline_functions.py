@@ -118,7 +118,10 @@ def make_image_transforms(image_resize):
 
 
 def make_dls(
-    clearml_dataset, image_resize, splits, batch_size=64,
+    clearml_dataset,
+    image_resize,
+    splits,
+    batch_size=64,
 ):
 
     dataset_path = Path(clearml_dataset.get_local_copy())
@@ -142,7 +145,8 @@ def make_dls(
 def make_dl_test(dataset_project, dataset_name, image_resize, batch_size):
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing",
+        dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
@@ -248,7 +252,7 @@ def eval_model(
     run_eval_path.mkdir(parents=True, exist_ok=True)
     eval_results = {
         "run_id": run_id,
-        "model_id": Task.current_task().models['output'][-1].id,
+        "model_id": Task.current_task().models["output"][-1].id,
         "run_learner_path": learner.path,
         "eval_dataset": {
             "dataset_project": dataset_project,
@@ -261,7 +265,7 @@ def eval_model(
         },
     }
     print(eval_results["metrics"])
-
+    print(eval_results)
     interp = Interpretation(learn=learner, dl=test_dl, losses=losses)
     interp.plot_top_losses(9, figsize=(15, 10))
     plt.show()
@@ -277,4 +281,5 @@ def eval_model(
 
     with open(run_eval_path / "evaluation_results.json", "w") as fid:
         json.dump(eval_results, fid, default=str, indent=4)
-    return eval_results
+
+    return eval_results, run_eval_path
