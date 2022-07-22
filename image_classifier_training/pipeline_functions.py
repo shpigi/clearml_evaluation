@@ -254,7 +254,7 @@ def eval_model(
     run_eval_path.mkdir(parents=True, exist_ok=True)
     eval_results = {
         "run_id": run_id,
-        "model_id": ,
+        "model_id": model_id,
         "run_learner_path": learner.path,
         "eval_dataset": {
             "dataset_project": dataset_project,
