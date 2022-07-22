@@ -3,7 +3,7 @@ import pickle
 import shutil
 
 import torch
-from clearml import Dataset, StorageManager
+from clearml import Dataset, StorageManager, Task
 from fastai.callback.tensorboard import TensorBoardCallback
 from fastai.metrics import Precision, Recall, top_k_accuracy
 from fastai.vision.all import (
