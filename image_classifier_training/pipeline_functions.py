@@ -35,13 +35,27 @@ from fastai.vision.all import (
 from sklearn.model_selection import StratifiedKFold
 
 
-def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
+def make_or_get_training_dataset(project, i_dataset, num_samples_per_chunk=500):
+    """make a dataset that adds images on top of it's parent dataset.
+    Will create the parent dataset(s) if necessary recursively"""
+
     new_dataset_name = f"pets_data_{num_samples_per_chunk}_{i_dataset}"
     try:
         the_dataset = Dataset.get(
             dataset_project=project, dataset_name=new_dataset_name
         )
-    except:
+    except ValueError:
+
+        if i_dataset == 0:
+            parent_datsets = None
+        else:
+            parent = make_or_get_training_dataset(
+                project, i_dataset - 1, num_samples_per_chunk=500
+            )
+            assert parent is not None
+            parent_datsets = [parent.id]
+
+        # make a batch of images
         manager = StorageManager()
         train_items_file = manager.get_local_copy(
             "gs://clearml-evaluation/data/pets/train_items.json",
@@ -61,16 +75,7 @@ def make_new_dataset(project, i_dataset, num_samples_per_chunk=500):
             i_dataset * num_samples_per_chunk, (i_dataset + 1) * num_samples_per_chunk
         )
 
-        if i_dataset == 0:
-            parent_datsets = None
-        else:
-            parent_dataset_name = f"pets_data_{num_samples_per_chunk}_{i_dataset-1}"
-            parent = Dataset.get(
-                dataset_project="lavi-testing", dataset_name=parent_dataset_name,
-            )
-            assert parent is not None
-            parent_datsets = [parent.id]
-
+        # create a dataset with the nes images as a child of it's parent
         the_dataset = Dataset.create(
             dataset_name=new_dataset_name,
             dataset_project="lavi-testing",
@@ -200,6 +205,7 @@ def train_image_classifier(
     local_data_path="/data",
     num_epochs=2,
 ):
+    run_info = locals()
     # get splits
     splits = list(get_splits(clearml_dataset, 5))[0]
 
@@ -222,17 +228,17 @@ def train_image_classifier(
 
     print("sample validation results")
     learner.show_results()
+
     plt.show()
-    print("run_learner_path", learner.path)
+    run_info["run_model_path"] = run_model_path
     print("train_image_classifier completed")
-    model_ids = [m.id for m in Task.current_task().models["output"]]
-    return run_model_path, model_ids
+    return run_model_path, run_info
 
 
 def eval_model(
     run_learner_path,
     run_id,
-    model_ids,
+    training_run_info,
     dataset_name,
     dataset_project,
     run_eval_uri,
@@ -243,6 +249,7 @@ def eval_model(
     print("run_learner_path:", run_learner_path)
     learner = load_learner(Path(run_learner_path / "learner.pkl"), cpu=False)
     learner.model.to(device="cuda")
+    learner.eval()
     test_dl = make_dl_test(dataset_project, dataset_name, image_resize, batch_size)
     # learner.dls = dls
     test_dl = test_dl.to(device="cuda")
@@ -252,7 +259,7 @@ def eval_model(
     run_eval_path.mkdir(parents=True, exist_ok=True)
     eval_results = {
         "run_id": run_id,
-        "model_ids": model_ids,
+        "training_run_info": training_run_info,
         "run_learner_path": str(learner.path),
         "eval_dataset": {
             "dataset_project": dataset_project,
@@ -269,18 +276,15 @@ def eval_model(
     interp = Interpretation(learn=learner, dl=test_dl, losses=losses)
     interp.plot_top_losses(9, figsize=(15, 10))
     plt.show()
+
     interp = ClassificationInterpretation.from_learner(learn=learner, dl=test_dl)
     interp.plot_confusion_matrix(figsize=(10, 10))
-    #     clearml_task.logger.report_matplotlib_figure(
-    #         title="Manual Reporting - confusion matrix", series=run_id, iteration=0, figure=plt
-    #     )
-
     plt.show()
-    print({"preds": preds.tolist(), "y_true": y_true.tolist()})
-    with open(run_eval_path / "preds.pkl", "wb") as fid:
+
+    with open(run_eval_path / "preds.json", "wb") as fid:
         pickle.dump({"preds": preds.tolist(), "y_true": y_true.tolist()}, fid)
 
     with open(run_eval_path / "evaluation_results.json", "w") as fid:
         json.dump(eval_results, fid, default=str, indent=4)
 
-    return eval_results, run_eval_path
+    return run_eval_path, eval_results
