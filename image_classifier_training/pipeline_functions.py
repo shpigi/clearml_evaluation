@@ -235,7 +235,7 @@ def train_image_classifier(
     run_info["training_task_id"] = Task.current_task().id
 
     # force run_info to be json serializeable
-    run_info = json.loads(json.dump(run_info, default=str))
+    run_info = json.loads(json.dumps(run_info, default=str))
     print("train_image_classifier completed")
     return run_model_path, run_info
 
