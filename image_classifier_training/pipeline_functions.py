@@ -125,7 +125,10 @@ def make_image_transforms(image_resize):
 
 
 def make_dls(
-    clearml_dataset, image_resize, splits, batch_size=64,
+    clearml_dataset,
+    image_resize,
+    splits,
+    batch_size=64,
 ):
 
     dataset_path = Path(clearml_dataset.get_local_copy())
@@ -149,7 +152,8 @@ def make_dls(
 def make_dl_test(dataset_project, dataset_name, image_resize, batch_size):
 
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing", dataset_name=f"pets_evaluation",
+        dataset_project="lavi-testing",
+        dataset_name=f"pets_evaluation",
     )
     dls = make_dls(
         eval_dataset,
@@ -206,7 +210,12 @@ def train_image_classifier(
     num_epochs=2,
 ):
     run_info = locals()
-    run_info["clearml_dataset"] = clearml_dataset.id
+    run_info["clearml_dataset"] = {
+        "id": clearml_dataset.id,
+        "name": clearml_dataset.name,
+        "project": clearml_dataset.project,
+        "num_entries": len(clearml_dataset.file_entries),
+    }
     # get splits
     splits = list(get_splits(clearml_dataset, 5))[0]
 
