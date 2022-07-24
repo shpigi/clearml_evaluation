@@ -22,7 +22,6 @@ from fastai.vision.all import (
     SaveModelCallback,
     ToTensor,
     URLs,
-    accuracy,
     aug_transforms,
     error_rate,
     get_image_files,
@@ -35,7 +34,7 @@ from fastai.vision.all import (
 from sklearn.model_selection import StratifiedKFold
 
 
-def make_or_get_training_dataset(project, i_dataset, num_samples_per_chunk=500):
+def make_or_get_training_dataset(project: str, i_dataset: int, num_samples_per_chunk=500):
     """make a dataset that adds images on top of it's parent dataset.
     Will create the parent dataset(s) if necessary recursively"""
 
@@ -89,7 +88,7 @@ def make_or_get_training_dataset(project, i_dataset, num_samples_per_chunk=500):
     return the_dataset
 
 
-def get_splits(dataset, n_splits):
+def get_splits_(dataset, n_splits):
     items = dataset.list_files()
     labeller = RegexLabeller(pat=r"^(.*)_\d+.jpg$")
     labels = [labeller(item) for item in items]
@@ -98,15 +97,15 @@ def get_splits(dataset, n_splits):
     return k_splits
 
 
-def top_1_accuracy(inp, targ, axis=-1):
+def _top_1_accuracy(inp, targ, axis=-1):
     return top_k_accuracy(inp, targ, k=1, axis=axis)
 
 
-def top_2_accuracy(inp, targ, axis=-1):
+def _top_2_accuracy(inp, targ, axis=-1):
     return top_k_accuracy(inp, targ, k=2, axis=axis)
 
 
-def top_3_accuracy(inp, targ, axis=-1):
+def _top_3_accuracy(inp, targ, axis=-1):
     return top_k_accuracy(inp, targ, k=3, axis=axis)
 
 
@@ -149,12 +148,8 @@ def make_dls(
     return dls
 
 
-def make_dl_test(dataset_project, dataset_name, image_resize, batch_size):
+def _make_dl_test(eval_dataset, image_resize, batch_size):
 
-    eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
-    )
     dls = make_dls(
         eval_dataset,
         image_resize,
@@ -164,27 +159,26 @@ def make_dl_test(dataset_project, dataset_name, image_resize, batch_size):
     return dls.test_dl(dls.items, with_labels=True)
 
 
-def make_learner(dls, run_model_path, backbone_name="resnet34"):
+def _make_learner(dls, run_model_path, backbone_name="resnet34"):
     # backbone_fn = pretrained_resnet_34 = partial(timm.create_model, pretrained=True)
     return vision_learner(
         dls,
         backbone_name,
         metrics=[
-            accuracy,
             error_rate,
             precision_micro(),
             recall_micro(),
             # roc_auc,
-            top_1_accuracy,
-            top_2_accuracy,
-            top_3_accuracy,
+            _top_1_accuracy,
+            _top_2_accuracy,
+            _top_3_accuracy,
         ],
         path=run_model_path,
         pretrained=True,
     )
 
 
-def save_model(learner):
+def _save_model(learner):
 
     # learner.export(learner.path/'learner.pkl')
     dummy_inp = torch.stack([a[0] for a in learner.dls.train_ds[:2]]).cuda()
@@ -217,13 +211,13 @@ def train_image_classifier(
         "num_entries": len(clearml_dataset.file_entries),
     }
     # get splits
-    splits = list(get_splits(clearml_dataset, 5))[0]
+    splits = list(get_splits_(clearml_dataset, 5))[0]
 
     run_model_path = Path(local_data_path) / run_model_uri
     run_tb_path = Path(local_data_path) / run_tb_uri
     dls = make_dls(clearml_dataset, image_resize, splits, batch_size)
     run_model_path.mkdir(parents=True, exist_ok=True)
-    learner = make_learner(dls, run_model_path, backbone_name)
+    learner = _make_learner(dls, run_model_path, backbone_name)
     suggestions = learner.lr_find()
     plt.show()
     tb_callback = TensorBoardCallback(
@@ -234,7 +228,7 @@ def train_image_classifier(
         suggestions.valley,
         cbs=[SaveModelCallback(every_epoch=False), tb_callback],
     )
-    save_model(learner)  # with_opt=False
+    _save_model(learner)  # with_opt=False
 
     print("sample validation results")
     learner.show_results()
@@ -264,7 +258,14 @@ def eval_model(
     learner = load_learner(Path(run_learner_path / "learner.pkl"), cpu=False)
     learner.model.to(device="cuda")
     learner.eval()
-    test_dl = make_dl_test(dataset_project, dataset_name, image_resize, batch_size)
+
+    # TODO provide project and dataset name to function
+    eval_dataset = Dataset.get(
+        dataset_project="lavi-testing",
+        dataset_name=f"pets_evaluation",
+    )
+
+    test_dl = _make_dl_test(eval_dataset, image_resize, batch_size)
     # learner.dls = dls
     test_dl = test_dl.to(device="cuda")
     preds, y_true, losses = learner.get_preds(inner=False, dl=test_dl, with_loss=True)
@@ -276,21 +277,25 @@ def eval_model(
         "training_run_info": training_run_info,
         "run_learner_path": str(learner.path),
         "eval_dataset": {
-            "dataset_project": dataset_project,
-            "dataset_name": dataset_name,
+            "project": dataset_project,
+            "name": dataset_name,
+            "id": eval_dataset.id,
+            "num_entries": len(eval_dataset.file_entries),
         },
         "metrics": {
-            "top_1_accuracy": top_1_accuracy(preds, y_true).tolist(),
-            "top_2_accuracy": top_2_accuracy(preds, y_true).tolist(),
-            "top_3_accuracy": top_3_accuracy(preds, y_true).tolist(),
+            "top_1_accuracy": _top_1_accuracy(preds, y_true).tolist(),
+            "top_2_accuracy": _top_2_accuracy(preds, y_true).tolist(),
+            "top_3_accuracy": _top_3_accuracy(preds, y_true).tolist(),
         },
     }
-    print(eval_results["metrics"])
     print(eval_results)
+
+    # plot top loss cases
     interp = Interpretation(learn=learner, dl=test_dl, losses=losses)
     interp.plot_top_losses(9, figsize=(15, 10))
     plt.show()
 
+    # plot test confusion
     interp = ClassificationInterpretation.from_learner(learn=learner, dl=test_dl)
     interp.plot_confusion_matrix(figsize=(10, 10))
     plt.show()
