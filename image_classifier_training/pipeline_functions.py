@@ -206,6 +206,7 @@ def train_image_classifier(
     num_epochs=2,
 ):
     run_info = locals()
+    run_info["clearml_dataset"] = clearml_dataset.id
     # get splits
     splits = list(get_splits(clearml_dataset, 5))[0]
 
@@ -231,6 +232,10 @@ def train_image_classifier(
 
     plt.show()
     run_info["run_model_path"] = run_model_path
+    run_info["training_task_id"] = Task.current_task().id
+
+    # force run_info to be json serializeable
+    run_info = json.loads(json.dump(run_info, default=str))
     print("train_image_classifier completed")
     return run_model_path, run_info
 
@@ -281,7 +286,7 @@ def eval_model(
     interp.plot_confusion_matrix(figsize=(10, 10))
     plt.show()
 
-    with open(run_eval_path / "preds.json", "wb") as fid:
+    with open(run_eval_path / "preds.pkl", "wb") as fid:
         pickle.dump({"preds": preds.tolist(), "y_true": y_true.tolist()}, fid)
 
     with open(run_eval_path / "evaluation_results.json", "w") as fid:
