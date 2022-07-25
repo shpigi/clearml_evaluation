@@ -1,17 +1,16 @@
 from clearml.automation.controller import PipelineDecorator
 from clearml import TaskTypes, Task
-from typing import Tuple, List, Dict
+from typing import List
 
 
 @PipelineDecorator.component(
     return_values=["the_dataset"],
     cache=True,
     task_type=TaskTypes.data_processing,
-    packages="./requirements.txt",
     repo="git@github.com:shpigi/clearml_evaluation.git",
     repo_branch="main",
-    docker="python:3.9-bullseye",
     execution_queue="default",
+    packages="./requirements.txt",
 )
 def make_or_get_training_dataset_component(
     project, i_dataset: int, num_samples_per_chunk: int = 500
@@ -30,9 +29,9 @@ def make_or_get_training_dataset_component(
     return_values=["run_model_path", "run_info"],
     cache=True,
     task_type=TaskTypes.training,
-    packages="./requirements.txt",
     repo="git@github.com:shpigi/clearml_evaluation.git",
     repo_branch="main",
+    packages="./requirements.txt",
 )
 def train_image_classifier_component(
     clearml_dataset,
@@ -65,9 +64,9 @@ def train_image_classifier_component(
     return_values=["run_eval_path"],
     cache=True,
     task_type=TaskTypes.testing,
-    packages="./requirements.txt",
     repo="git@github.com:shpigi/clearml_evaluation.git",
     repo_branch="main",
+    packages="./requirements.txt",
 )
 def eval_model_component(
     run_learner_path,
@@ -105,6 +104,7 @@ def eval_model_component(
     task_type=TaskTypes.custom,
     docker="python:3.9-bullseye",
     execution_queue="default",
+    packages=["clearml==1.6.3rc1"],
 )
 def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
     from clearml import StorageManager, Task
@@ -160,6 +160,7 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
     multi_instance_support="",
     add_pipeline_tags=True,  # add pipe: <pipeline_task_id> tag to all component tasks
     abort_on_failure=True,
+    packages=["clearml==1.6.3rc1"],
 )
 def fastai_image_classification_pipeline(
     run_tags: List[str],
@@ -171,7 +172,6 @@ def fastai_image_classification_pipeline(
 ):
     pipeline_metadata = locals()
     from clearml import Task
-    import json
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     pipeline_task = Task.current_task()
