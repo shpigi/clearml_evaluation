@@ -133,21 +133,17 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
             task.artifacts["run_model_path"].url
         )
 
-        deployment_url = (
-            f"gs://clearml-evaluation/lavi-testing/deployed_model/{model_file_name}"
-        )
+        deployment_url = "gs://clearml-evaluation/lavi-testing/deployed_model/"
         print("saving new model (jit cuda and cpu versions) to deployment location:")
         print(deployment_url)
-
         for model_file_name in ["model_jit_cpu.pt", "model_jit_cuda.pt"]:
             storage_manager.upload_file(
-                f"{model_path}/{model_file_name}", deployment_url,
+                f"{model_path}/{model_file_name}", {deployment_url} / {model_file_name},
             )
 
         print("saving new model's evaluation results to deployment location")
         storage_manager.upload_file(
-            str(deployed_eval_res_path),
-            f"gs://clearml-evaluation/lavi-testing/deployed_model/eval_results.json",
+            str(deployed_eval_res_path), f"{deployment_url}/eval_results.json",
         )
     return deploy
 
