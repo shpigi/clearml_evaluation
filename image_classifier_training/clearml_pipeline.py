@@ -160,7 +160,6 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
     multi_instance_support="",
     add_pipeline_tags=True,  # add pipe: <pipeline_task_id> tag to all component tasks
     abort_on_failure=True,
-    packages=["clearml==1.6.3rc1"],
 )
 def fastai_image_classification_pipeline(
     run_tags: List[str],
