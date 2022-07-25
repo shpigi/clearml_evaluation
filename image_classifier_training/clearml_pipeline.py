@@ -138,7 +138,8 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
         print(deployment_url)
         for model_file_name in ["model_jit_cpu.pt", "model_jit_cuda.pt"]:
             storage_manager.upload_file(
-                f"{model_path}/{model_file_name}", {deployment_url} / {model_file_name},
+                f"{model_path}/{model_file_name}",
+                f"{deployment_url}/{model_file_name}",
             )
 
         print("saving new model's evaluation results to deployment location")
