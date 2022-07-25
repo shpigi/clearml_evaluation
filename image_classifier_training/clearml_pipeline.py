@@ -100,7 +100,6 @@ def eval_model_component(
 
 
 @PipelineDecorator.component(
-    return_values=["deploy"],
     task_type=TaskTypes.custom,
     docker="python:3.9-bullseye",
     execution_queue="default",
@@ -115,6 +114,7 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
         "gs://clearml-evaluation/lavi-testing/deployed_model/eval_results.json"
     )
     deploy = True
+    deployed_model_eval_results = None
     if deployed_eval_res_path is not None:
         with open(deployed_eval_res_path, "r") as fid:
             deployed_model_eval_results = json.load(fid)
@@ -126,7 +126,7 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
     if deploy:
         print("deploying:")
         task = Task.get_task(
-            task_id=deployed_model_eval_results["training_run_info"]["training_task_id"]
+            task_id=new_eval_results["training_run_info"]["training_task_id"]
         )
         print("download the new model")
         model_path = storage_manager.get_local_copy(
@@ -146,7 +146,14 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
         storage_manager.upload_file(
             str(deployed_eval_res_path), f"{deployment_url}/eval_results.json",
         )
-    return deploy
+    Task.get_current().upload_artifact(
+        "deploy_decision",
+        {
+            "deploy": deploy,
+            "previous_eval": deployed_model_eval_results,
+            "new_eval": new_eval_results,
+        },
+    )
 
 
 @PipelineDecorator.pipeline(
