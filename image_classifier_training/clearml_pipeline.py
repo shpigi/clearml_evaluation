@@ -146,7 +146,7 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
         storage_manager.upload_file(
             str(deployed_eval_res_path), f"{deployment_url}/eval_results.json",
         )
-    Task.get_current().upload_artifact(
+    Task.current_task().upload_artifact(
         "deploy_decision",
         {
             "deploy": deploy,
@@ -161,7 +161,7 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
     project="lavi-testing",
     target_project="lavi-testing",
     version="0.2",
-    multi_instance_support="",
+    multi_instance_support=True,
     add_pipeline_tags=True,  # add pipe: <pipeline_task_id> tag to all component tasks
     abort_on_failure=True,
 )
