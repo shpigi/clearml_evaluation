@@ -3,7 +3,6 @@ import pickle
 import shutil
 import tempfile
 import torch
-import random
 
 from clearml import Dataset, StorageManager, Task
 from fastai.callback.tensorboard import TensorBoardCallback
@@ -34,7 +33,9 @@ from fastai.vision.all import (
 from sklearn.model_selection import StratifiedKFold
 
 
-def make_or_get_training_dataset(project: str, i_dataset: int, num_samples_per_chunk=500):
+def make_or_get_training_dataset(
+    project: str, i_dataset: int, num_samples_per_chunk=500
+):
     """make a dataset that adds images on top of it's parent dataset.
     Will create the parent dataset(s) if necessary recursively"""
 
@@ -77,7 +78,7 @@ def make_or_get_training_dataset(project: str, i_dataset: int, num_samples_per_c
         # create a dataset with the nes images as a child of it's parent
         the_dataset = Dataset.create(
             dataset_name=new_dataset_name,
-            dataset_project="lavi-testing",
+            dataset_project=project,
             parent_datasets=parent_datsets,
         )
         the_dataset.add_files(tmp_images_path)
@@ -88,7 +89,7 @@ def make_or_get_training_dataset(project: str, i_dataset: int, num_samples_per_c
     return the_dataset
 
 
-def get_splits_(dataset, n_splits):
+def _get_splits_(dataset, n_splits):
     items = dataset.list_files()
     labeller = RegexLabeller(pat=r"^(.*)_\d+.jpg$")
     labels = [labeller(item) for item in items]
@@ -109,25 +110,22 @@ def _top_3_accuracy(inp, targ, axis=-1):
     return top_k_accuracy(inp, targ, k=3, axis=axis)
 
 
-def precision_micro():
+def _precision_micro():
     return Precision(average="micro")
 
 
-def recall_micro():
+def _recall_micro():
 
     return Recall(average="micro")
 
 
-def make_image_transforms(image_resize):
+def _make_image_transforms(image_resize):
 
     return [PILImage.create, Resize(image_resize), ToTensor(), IntToFloatTensor()]
 
 
-def make_dls(
-    clearml_dataset,
-    image_resize,
-    splits,
-    batch_size=64,
+def _make_dls(
+    clearml_dataset, image_resize, splits, batch_size=64,
 ):
 
     dataset_path = Path(clearml_dataset.get_local_copy())
@@ -135,7 +133,7 @@ def make_dls(
 
     labeller = using_attr(RegexLabeller(pat=r"^(.*)_\d+.jpg$"), "name")
     tfms = [
-        make_image_transforms(image_resize=image_resize),
+        _make_image_transforms(image_resize=image_resize),
         [labeller, Categorize()],
     ]
 
@@ -150,7 +148,7 @@ def make_dls(
 
 def _make_dl_test(eval_dataset, image_resize, batch_size):
 
-    dls = make_dls(
+    dls = _make_dls(
         eval_dataset,
         image_resize,
         [range(len(eval_dataset.list_files())), range(len(eval_dataset.list_files()))],
@@ -166,8 +164,8 @@ def _make_learner(dls, run_model_path, backbone_name="resnet34"):
         backbone_name,
         metrics=[
             error_rate,
-            precision_micro(),
-            recall_micro(),
+            _precision_micro(),
+            _recall_micro(),
             # roc_auc,
             _top_1_accuracy,
             _top_2_accuracy,
@@ -211,11 +209,11 @@ def train_image_classifier(
         "num_entries": len(clearml_dataset.file_entries),
     }
     # get splits
-    splits = list(get_splits_(clearml_dataset, 5))[0]
+    splits = list(_get_splits_(clearml_dataset, 5))[0]
 
     run_model_path = Path(local_data_path) / run_model_uri
     run_tb_path = Path(local_data_path) / run_tb_uri
-    dls = make_dls(clearml_dataset, image_resize, splits, batch_size)
+    dls = _make_dls(clearml_dataset, image_resize, splits, batch_size)
     run_model_path.mkdir(parents=True, exist_ok=True)
     learner = _make_learner(dls, run_model_path, backbone_name)
     suggestions = learner.lr_find()
@@ -261,8 +259,7 @@ def eval_model(
 
     # TODO provide project and dataset name to function
     eval_dataset = Dataset.get(
-        dataset_project="lavi-testing",
-        dataset_name=f"pets_evaluation",
+        dataset_project=dataset_project, dataset_name=f"pets_evaluation",
     )
 
     test_dl = _make_dl_test(eval_dataset, image_resize, batch_size)
@@ -289,7 +286,6 @@ def eval_model(
         },
     }
     print(eval_results)
-
     # plot top loss cases
     interp = Interpretation(learn=learner, dl=test_dl, losses=losses)
     interp.plot_top_losses(9, figsize=(15, 10))
@@ -300,10 +296,20 @@ def eval_model(
     interp.plot_confusion_matrix(figsize=(10, 10))
     plt.show()
 
-    with open(run_eval_path / "preds.pkl", "wb") as fid:
+    with open(run_eval_path / "preds" / f"{run_id}.preds.pkl", "wb") as fid:
         pickle.dump({"preds": preds.tolist(), "y_true": y_true.tolist()}, fid)
 
-    with open(run_eval_path / "evaluation_results.json", "w") as fid:
+    with open(run_eval_path / "evals" / f"{run_id}.eval.json", "w") as fid:
         json.dump(eval_results, fid, default=str, indent=4)
+    try:
+        model_evals_dataset = Dataset.get(
+            dataset_project=dataset_project, dataset_name=f"model_evals",
+        )
+    except ValueError:
+        model_evals_dataset = Dataset.create(
+            dataset_project=dataset_project, dataset_name=f"model_evals",
+        )
+    model_evals_dataset.add_files(run_eval_path)
+    model_evals_dataset.upload()
 
     return run_eval_path, eval_results
