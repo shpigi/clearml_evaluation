@@ -104,7 +104,7 @@ def eval_model_component(
     task_type=TaskTypes.custom,
     docker="python:3.9-bullseye",
     execution_queue="default",
-    packages=["clearml==1.6.3rc1"],
+    packages=["clearml==1.6.3rc1", "google-cloud-storage>=1.13.2"],
 )
 def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
     from clearml import StorageManager, Task
