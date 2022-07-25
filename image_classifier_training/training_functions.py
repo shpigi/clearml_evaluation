@@ -296,11 +296,16 @@ def eval_model(
     interp.plot_confusion_matrix(figsize=(10, 10))
     plt.show()
 
-    with open(run_eval_path / "preds" / f"{run_id}.preds.pkl", "wb") as fid:
+    # save results to files
+    (run_eval_path / "preds").mkdir()
+    with open(f"{run_id}.preds.pkl", "wb") as fid:
         pickle.dump({"preds": preds.tolist(), "y_true": y_true.tolist()}, fid)
 
+    (run_eval_path / "evals").mkdir()
     with open(run_eval_path / "evals" / f"{run_id}.eval.json", "w") as fid:
         json.dump(eval_results, fid, default=str, indent=4)
+
+    # add files to dataset
     try:
         model_evals_dataset = Dataset.get(
             dataset_project=dataset_project, dataset_name=f"model_evals",
@@ -312,4 +317,5 @@ def eval_model(
     model_evals_dataset.add_files(run_eval_path)
     model_evals_dataset.upload()
 
-    return run_eval_path, eval_results
+    # return path for upload and results dict for use in ne
+    return eval_results, preds
