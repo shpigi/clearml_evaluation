@@ -1,4 +1,4 @@
-clearml==1.6.3rc1
+clearml==1.6.2
 jupyter
 tensorboard_logger
 timm

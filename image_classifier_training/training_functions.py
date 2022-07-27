@@ -308,11 +308,11 @@ def eval_model(
     # add files to dataset
     try:
         model_evals_dataset = Dataset.get(
-            dataset_project=dataset_project, dataset_name=f"model_evals",
+            dataset_project=dataset_project, dataset_name=f"model_evals_2",
         )
     except ValueError:
         model_evals_dataset = Dataset.create(
-            dataset_project=dataset_project, dataset_name=f"model_evals",
+            dataset_project=dataset_project, dataset_name=f"model_evals_2",
         )
     model_evals_dataset.add_files(run_eval_path)
     model_evals_dataset.upload()
