@@ -233,7 +233,9 @@ def train_image_classifier(
 
     plt.show()
     run_info["run_model_path"] = run_model_path
-    run_info["training_task_id"] = Task.current_task().id
+    current_task = Task.current_task()
+
+    run_info["training_task_id"] = current_task.id if current_task else None
 
     # force run_info to be json serializeable
     run_info = json.loads(json.dumps(run_info, default=str))
@@ -316,6 +318,8 @@ def eval_model(
         )
     model_evals_dataset.add_files(run_eval_path)
     model_evals_dataset.upload()
-
+    current_task = Task.current_task()
+    if current_task:
+        current_task.add_tags(["eval"])
     # return path for upload and results dict for use in ne
     return eval_results, preds
