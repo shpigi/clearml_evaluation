@@ -7,8 +7,25 @@ from typing import List
     return_values=["the_dataset"],
     cache=True,
     task_type=TaskTypes.data_processing,
-    repo="git@github.com:shpigi/clearml_evaluation.git",
-    repo_branch="main",
+    execution_queue="default",
+    packages="./requirements.txt",
+)
+def dummy_component(
+    project, i_dataset: int, num_samples_per_chunk: int = 500
+):
+    import sys
+    #import torch
+
+    sys.path.insert(0, "/src/clearml_evaluation/")
+    from image_classifier_training import training_functions
+    print("Inside the dummy")
+
+    return "Made it after the dummy"
+
+@PipelineDecorator.component(
+    return_values=["the_dataset"],
+    cache=True,
+    task_type=TaskTypes.data_processing,
     execution_queue="default",
     packages="./requirements.txt",
 )
@@ -25,7 +42,7 @@ def make_or_get_training_dataset_component(
     )
 
 
-@PipelineDecorator.component(
+"""@PipelineDecorator.component(
     return_values=["run_model_path", "run_info"],
     cache=True,
     task_type=TaskTypes.training,
@@ -57,10 +74,10 @@ def train_image_classifier_component(
         run_tb_uri,
         local_data_path,
         num_epochs,
-    )
+    )"""
 
 
-@PipelineDecorator.component(
+"""@PipelineDecorator.component(
     return_values=["run_eval_path"],
     cache=True,
     task_type=TaskTypes.testing,
@@ -96,10 +113,10 @@ def eval_model_component(
         local_data_path,
     )
     Task.current_task().upload_artifact("preds", preds)
-    return eval_results
+    return eval_results"""
 
 
-@PipelineDecorator.component(
+"""@PipelineDecorator.component(
     task_type=TaskTypes.custom,
     docker="python:3.9-bullseye",
     execution_queue="default",
@@ -153,7 +170,7 @@ def deploy_model_if_better(new_eval_results: dict, kpi_name="top_1_accuracy"):
             "previous_eval": deployed_model_eval_results,
             "new_eval": new_eval_results,
         },
-    )
+    )"""
 
 
 @PipelineDecorator.pipeline(
@@ -181,7 +198,17 @@ def fastai_image_classification_pipeline(
     run_id = pipeline_task.id
     pipeline_task.add_tags(run_tags)
 
-    class TaskURIs:
+    print("Made it here")
+
+    project_name = "mohamed-testing"
+
+    training_dataset = dummy_component(
+        project=project_name, i_dataset=i_dataset, num_samples_per_chunk=500
+    )
+
+    print(f"After the dummy: {training_dataset}")
+
+    """class TaskURIs:
         def __init__(self, project, pipeline_name, run_id):
             path_pref = f"{project}/{pipeline_name}"
             self.tboard = f"{path_pref}/tboard/{run_id}"
@@ -271,4 +298,16 @@ def fastai_image_classification_pipeline(
     )
 
     deploy_model_if_better(best_res)
-    print("pipeline complete")
+    print("pipeline complete")"""
+
+if __name__ == "__main__":
+    #PipelineDecorator.run_locally()
+    PipelineDecorator.set_default_execution_queue('default')
+    fastai_image_classification_pipeline(
+        run_tags=["run_1"],
+        i_dataset=0,
+        backbone_names=["resnet34"],
+        image_resizes=[1],
+        batch_sizes=[10],
+        num_train_epochs=2,
+    )
